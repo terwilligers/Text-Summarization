@@ -21,10 +21,10 @@ from sumy.utils import get_stop_words
 LANGUAGE = "english"
 SENTENCES_COUNT = 3
 
-#
-# global _TOKENIZER
-# _TOKENIZER = nltk.tokenize.casual.TweetTokenizer(
-#     preserve_case=False)
+
+global _TOKENIZER
+_TOKENIZER = nltk.tokenize.casual.TweetTokenizer(
+    preserve_case=False)
 
 
 def parse_args():
@@ -48,6 +48,9 @@ def tokenize(string):
     return _TOKENIZER.tokenize(string)
 
 
+'''
+Load the corpus, based on the structure of our sample files
+'''
 def load_labeled_corpus(fname, limit):
     docs = []
     summaries = []
@@ -55,7 +58,7 @@ def load_labeled_corpus(fname, limit):
     with open(fname) as f:
         doc = True
         count = 0
-        for line in f:
+        for line in tqdm.tqdm(f):
             if count == limit:
                 break
             if line == '\n':
