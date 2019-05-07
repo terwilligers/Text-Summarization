@@ -74,12 +74,12 @@ def load_labeled_corpus(fname, limit):
     return docs, summaries
 
 '''
-Returns a summary consisting of purely the first sentence (everything before a period)
-in a paragraph.
+Returns a summary consisting of purely the first sentence
+in a paragraph. A lede 1 baseline.
 '''
 def summarize_doc_constant1(doc):
-   sentences = doc.split('.')
-   return sentences[0] + '.'
+   sentences = nltk.sent_tokenize(doc)
+   return sentences[0]
 
 '''
 Returns a summary using the sumy API
@@ -100,19 +100,137 @@ def summarize_sumy(doc):
     return summary
 
 
+'''
+Create logistic regression model
+For all training set docs, assign each sentence in summary a 1, and each sentence
+in doc a number between 0 and 1 based on how close to summary sentences it is?
+Right now our features are the words, and literally based off of first doc only!!!!!!!!
+'''
+def get_logistic_regression(train_docs,train_summaries, limit, min_vocab_occur=20):
+
+    import sklearn.linear_model
+    import sklearn.preprocessing
+    import sklearn.pipeline
+
+    model = sklearn.pipeline.Pipeline([('scaler', sklearn.preprocessing.StandardScaler()),
+                                       ('model', sklearn.linear_model.LogisticRegressionCV(Cs=5))])
+
+    #create vocab
+    word_counts = collections.Counter()
+    for doc in train_docs:
+        for word in tokenize(doc):
+            word_counts.update(word)
+
+    vocab = [w for w, c in word_counts.items() if c >= min_vocab_occur]
+    word2idx = {w:idx for idx, w in enumerate(vocab)}
+
+    #Find total number of sentences
+    count = 0
+    for doc in train_docs:
+        for sentence in nltk.sent_tokenize(doc):
+            count += 1
+    for doc in train_summaries:
+        for sentence in nltk.sent_tokenize(doc):
+            count += 1
+
+    data_matrix = np.zeros((count, len(vocab)))
+    train_labels = np.zeros(count)
+
+    #loop through each sentence and create word vectors
+    #currently assigning doc sentences to 0, and sum sentences to 1, but that should change
+    offset = 0
+    for i,doc in enumerate(train_docs):
+        summary = train_summaries[i]
+        doc_sentences = nltk.sent_tokenize(doc)
+        sum_sentences = nltk.sent_tokenize(summary)
+
+        for s in doc_sentences:
+            words = tokenize(s)
+            for word in words:
+                if word in word2idx:
+                    data_matrix[offset, word2idx[word]] += 1
+            offset += 1
+            #maybe assign some train labels to 1 here, say calculate overlap vocab from sum, and assign 1 if enough overlap?
+
+        #currently assigning only sum sentences to 1
+        for s in sum_sentences:
+            words = tokenize(s)
+            for word in words:
+                if word in word2idx:
+                    data_matrix[offset, word2idx[word]] += 1
+            train_labels[offset] = 1
+            offset += 1
+
+    model.fit(data_matrix, train_labels)
+
+    return word2idx, model
+
+'''
+Slightly better than baseline summarizer, based on logistic regression model
+
+For each test/val set doc use logistic regression to assign each sentence
+to a predict_probability between 0 and 1, then select sentences based on this.
+
+--To start lets just assign 0's and 1's?
+for each sentence we assign class, and then sort and take top 4 as summary.
+
+--Problems: Considers sentences across all docs, so all its really doing is picking out
+sentences that look like previous sum sentences, but not like previous doc sentences, is this
+really what we want?
+'''
+def summarize_logistic_reg(doc, vocab_lr, model_lr):
+    sentences = nltk.sent_tokenize(doc)
+    results = []
+    summary = ""
+    #create word count vectors for each sentence.
+    for i,s in enumerate(sentences):
+        term_count_vector = np.zeros((1,len(vocab_lr)))
+        words = tokenize(s)
+        for w in words:
+            if w in vocab_lr:
+                term_count_vector[0][vocab_lr[w]] += 1
+
+        #gets logistic regression probabilities based on sentence words.
+        output = model_lr.predict_proba(term_count_vector)[0]
+        results.append(output.tolist() +[i])
+
+    #take top 4 as summary, then sort back into initial order
+    results.sort(key=lambda x: x[0])
+    top4 = results[:4]
+    top4.sort(key=lambda x: x[2])
+    for i in range(4):
+        if i >= len(sentences):
+            break
+        summary = summary + ' ' + sentences[top4[i][2]]
+    return summary
+
+
+
+
+
 def main():
+    limit_num = 10
     args = parse_args()
-    train_docs, train_sums = load_labeled_corpus(args.train_titles, limit = 100)
-    val_docs, val_sums = load_labeled_corpus(args.val_titles, limit = 100)
+    train_docs, train_sums = load_labeled_corpus(args.train_titles, limit = limit_num)
+    val_docs, val_sums = load_labeled_corpus(args.val_titles, limit = limit_num)
 
     ## Constant prediction
     constant1_predictions = np.array([summarize_doc_constant1(v) for v in val_docs])
 
+    #better than baseline prediction
+    vocab_lr, model_lr =  get_logistic_regression(train_docs, train_sums, limit_num)
+    lr_predictions = np.array([summarize_logistic_reg(v, vocab_lr, model_lr) for v in val_docs])
+
+    #api prediction
     sumy_predictions = np.array([summarize_sumy(v) for v in tqdm.tqdm(val_docs)])
 
-    for i in range(2):
+
+    for i in range(3):
         print("baseline:")
         print(constant1_predictions[i])
+        print()
+        print("Logistic Regression:")
+        print(lr_predictions[i])
         print()
         print("sumy summary:")
         print(sumy_predictions[i])
@@ -120,6 +238,8 @@ def main():
         print("actual summary:")
         print(val_sums[i])
         print()
+
+
 
 
 
