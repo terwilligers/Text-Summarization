@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division, print_function, unicode_literals
-
 import argparse
 import nltk
 import numpy as np
@@ -8,6 +5,9 @@ import tqdm
 import sklearn.metrics
 import collections
 import math
+
+from rouge_implementation import rouge
+from rouge_implementation import process_sentence
 
 '''sumy api packages'''
 from sumy.parsers.html import HtmlParser
@@ -104,7 +104,7 @@ def summarize_sumy(doc):
 Create logistic regression model
 For all training set docs, assign each sentence in summary a 1, and each sentence
 in doc a number between 0 and 1 based on how close to summary sentences it is?
-Right now our features are the words, and literally based off of first doc only!!!!!!!!
+Right now our features are the words, and docs are assigned 0, while summaries are assigned 1
 '''
 def get_logistic_regression(train_docs,train_summaries, limit, min_vocab_occur=20):
 
@@ -204,40 +204,68 @@ def summarize_logistic_reg(doc, vocab_lr, model_lr):
         summary = summary + ' ' + sentences[top4[i][2]]
     return summary
 
+'''
+Uses our rouge implementation to compute summarization metrics
+We take the average over every summary
+'''
+def get_rouge_avg(system_sums, val_sums, n):
+    N = len(system_sums)
+    total_recall = 0
+    total_precision = 0
+    total_f1 = 0
+    for i,sys_sum in enumerate(system_sums):
+        #error handle check
+        if len(process_sentence(sys_sum)) < n:
+            N -= 1
+            continue
+        val_sum = val_sums[i]
+        (recall, precision, f1) = rouge(process_sentence(sys_sum), process_sentence(val_sum), n)
+        total_recall += recall
+        total_precision += precision
+        if f1:
+            total_f1 += f1
 
-
+    return total_recall/N, total_precision/N, total_f1/N
 
 
 def main():
-    limit_num = 10
+    limit_num = 100
     args = parse_args()
     train_docs, train_sums = load_labeled_corpus(args.train_titles, limit = limit_num)
     val_docs, val_sums = load_labeled_corpus(args.val_titles, limit = limit_num)
 
     ## Constant prediction
-    constant1_predictions = np.array([summarize_doc_constant1(v) for v in val_docs])
+    constant1_predictions = np.array([summarize_doc_constant1(v) for v in tqdm.tqdm(val_docs)])
 
     #better than baseline prediction
     vocab_lr, model_lr =  get_logistic_regression(train_docs, train_sums, limit_num)
-    lr_predictions = np.array([summarize_logistic_reg(v, vocab_lr, model_lr) for v in val_docs])
+    lr_predictions = np.array([summarize_logistic_reg(v, vocab_lr, model_lr) for v in tqdm.tqdm(val_docs)])
 
     #api prediction
     sumy_predictions = np.array([summarize_sumy(v) for v in tqdm.tqdm(val_docs)])
 
+    print("Rouge-2 metrics (recall, precision, f1):")
+    print("baseline:", get_rouge_avg(constant1_predictions, val_sums, 2))
+    print("logistic:", get_rouge_avg(lr_predictions, val_sums, 2))
+    print("sumy:", get_rouge_avg(sumy_predictions, val_sums, 2))
 
-    for i in range(3):
-        print("baseline:")
-        print(constant1_predictions[i])
-        print()
-        print("Logistic Regression:")
-        print(lr_predictions[i])
-        print()
-        print("sumy summary:")
-        print(sumy_predictions[i])
-        print()
-        print("actual summary:")
-        print(val_sums[i])
-        print()
+
+    # for i in range(3):
+    #     print("baseline:")
+    #     print(constant1_predictions[i])
+    #     print(rouge(process_sentence(constant1_predictions[i]), process_sentence(val_sums[i]), 2))
+    #     print()
+    #     print("Logistic Regression:")
+    #     print(lr_predictions[i])
+    #     print(rouge(process_sentence(lr_predictions[i]), process_sentence(val_sums[i]), 2))
+    #     print()
+    #     print("sumy summary:")
+    #     print(sumy_predictions[i])
+    #     print(rouge(process_sentence(sumy_predictions[i]), process_sentence(val_sums[i]), 2))
+    #     print()
+    #     print("actual summary:")
+    #     print(val_sums[i])
+    #     print()
 
 
 
