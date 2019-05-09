@@ -5,6 +5,7 @@ import tqdm
 import sklearn.metrics
 import collections
 import math
+from rouge_score import rouge_n
 
 from rouge_implementation import rouge
 from rouge_implementation import process_sentence
@@ -56,7 +57,7 @@ def load_labeled_corpus(fname, limit):
     docs = []
     summaries = []
 
-    with open(fname) as f:
+    with open(fname, encoding='utf-8') as f:
         doc = True
         count = 0
         for line in tqdm.tqdm(f):
@@ -87,7 +88,7 @@ Returns a summary using the sumy API
 '''
 def summarize_sumy(doc):
     summary = ""
-    file_doc = open("temp.txt", "w")
+    file_doc = open("temp.txt", "w", encoding = 'utf-8')
     file_doc.write(doc)
     file_doc.close()
 
@@ -228,6 +229,29 @@ def get_rouge_avg(system_sums, val_sums, n):
 
     return total_recall/N, total_precision/N, total_f1/N
 
+def get_rouge_api(system_sums, val_sums, n):
+    N = len(system_sums)
+    total_recall = 0
+    total_precision = 0
+    total_f1 = 0
+    for i,sys_sum in enumerate(system_sums):
+        #error handle check
+        if len(process_sentence(sys_sum)) < n:
+            N -= 1
+            continue
+        val_sum = val_sums[i]
+        scores = rouge_n(process_sentence(sys_sum), process_sentence(val_sum), n)
+        recall = scores["r"]
+        precision = scores["p"]
+        f1 = scores["f"]
+        total_recall += recall
+        total_precision += precision
+        if f1:
+            total_f1 += f1
+
+    return total_recall/N, total_precision/N, total_f1/N
+    
+
 
 '''
 Summarization using TextRank
@@ -259,9 +283,17 @@ def main():
 
     print("Rouge-2 metrics (recall, precision, f1):")
     print("baseline:", get_rouge_avg(constant1_predictions, val_sums, 2))
+    print("PyRouge baseline:", get_rouge_api(constant1_predictions, val_sums, 2))
+
     print("logistic:", get_rouge_avg(lr_predictions, val_sums, 2))
+    print("PyRouge logistic:", get_rouge_api(lr_predictions, val_sums, 2))
+
     print("sumy:", get_rouge_avg(sumy_predictions, val_sums, 2))
+    print("PyRouge sumy:", get_rouge_api(sumy_predictions, val_sums, 2))
+
     print("TextRank:", get_rouge_avg(text_rank_pred, val_sums, 2))
+    print("PyRouge TextRank:", get_rouge_api(text_rank_pred, val_sums, 2))
+
 
 
     # for i in range(3):
