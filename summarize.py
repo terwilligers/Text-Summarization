@@ -268,7 +268,7 @@ def summarize_doc_constant(doc, n):
 
 
 def main():
-    limit_num = 1000
+    limit_num = 100
     args = parse_args()
     train_docs, train_sums = load_labeled_corpus(args.train_titles, limit = limit_num)
     val_docs, val_sums = load_labeled_corpus(args.val_titles, limit = limit_num)
