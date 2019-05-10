@@ -157,7 +157,7 @@ def get_logistic_regression(train_docs,train_summaries, limit, min_vocab_occur=2
 
     model.fit(data_matrix, train_labels)
 
-    return word2idx, model
+    return word2idx, model, train_vocab, train_word_counts
 
 '''
 Slightly better than baseline summarizer, based on logistic regression model
@@ -268,7 +268,7 @@ def summarize_doc_constant(doc, n):
 
 
 def main():
-    limit_num = 100
+    limit_num = 1000
     args = parse_args()
     train_docs, train_sums = load_labeled_corpus(args.train_titles, limit = limit_num)
     val_docs, val_sums = load_labeled_corpus(args.val_titles, limit = limit_num)
@@ -277,7 +277,13 @@ def main():
     constant_predictions = np.array([summarize_doc_constant(v, 3) for v in tqdm.tqdm(val_docs)])
 
     #logitic regression implementation
-    vocab_lr, model_lr =  get_logistic_regression(train_docs, train_sums, limit_num)
+    vocab_lr, model_lr, train_vocab, train_word_counts =  get_logistic_regression(train_docs, train_sums, limit_num)
+
+    # print some information about how many docs we loaded and our vocab size
+    print('Loaded {0} training docs and {1} validation/test docs.'.format(len(train_docs), len(val_docs)))
+    print('Our training vocab contains {} word types with a frequency greater than our cutoff.'.format(len(train_vocab)))
+    print('There are {} unique word types in our training vocab overall.'.format(len(train_word_counts)))
+
     lr_predictions = np.array([summarize_logistic_reg(v, vocab_lr, model_lr) for v in tqdm.tqdm(val_docs)])
 
     #api prediction
