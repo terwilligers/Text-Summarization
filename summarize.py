@@ -65,22 +65,14 @@ def load_labeled_corpus(fname, limit):
             if line == '\n':
                 continue
             elif doc:
-                docs.append(line.rstrip('\n'))
+                docs.append(line.rstrip('\n') + ' ')
                 doc = False
             else:
-                summaries.append(line.rstrip('\n'))
+                summaries.append(line.rstrip('\n') + ' ')
                 doc = True
                 count += 1
 
     return docs, summaries
-
-'''
-Returns a summary consisting of purely the first sentence
-in a paragraph. A lede 1 baseline.
-'''
-def summarize_doc_constant1(doc):
-   sentences = nltk.sent_tokenize(doc)
-   return sentences[0]
 
 '''
 Returns a summary using the sumy API
@@ -199,7 +191,7 @@ def summarize_logistic_reg(doc, vocab_lr, model_lr):
     results.sort(key=lambda x: x[0])
     top4 = results[:4]
     top4.sort(key=lambda x: x[2])
-    for i in range(4):
+    for i in range(3):
         if i >= len(sentences):
             break
         summary = summary + ' ' + sentences[top4[i][2]]
@@ -231,11 +223,24 @@ def get_rouge_avg(system_sums, val_sums, n):
 
 '''
 Summarization using TextRank
+Seems to favor longer sentences, some of which may be tokenized badly
 '''
 def summarize_text_rank(doc):
     sentences = nltk.sent_tokenize(doc)
     summary = text_rank(sentences, 3)
     return ' '.join(summary)
+
+'''
+Lede-n baseline
+'''
+def summarize_doc_constant(doc, n):
+   sentences = nltk.sent_tokenize(doc)
+   result = ""
+   for i in range(n):
+       if i >= len(sentences):
+           break
+       result = result + ' ' + sentences[i]
+   return result
 
 
 def main():
@@ -244,8 +249,8 @@ def main():
     train_docs, train_sums = load_labeled_corpus(args.train_titles, limit = limit_num)
     val_docs, val_sums = load_labeled_corpus(args.val_titles, limit = limit_num)
 
-    ## Constant prediction
-    constant1_predictions = np.array([summarize_doc_constant1(v) for v in tqdm.tqdm(val_docs)])
+    ## Constant prediction, using lede-3
+    constant_predictions = np.array([summarize_doc_constant(v, 3) for v in tqdm.tqdm(val_docs)])
 
     #logitic regression implementation
     vocab_lr, model_lr =  get_logistic_regression(train_docs, train_sums, limit_num)
@@ -258,7 +263,7 @@ def main():
     text_rank_pred = np.array([summarize_text_rank(v) for v in tqdm.tqdm(val_docs)])
 
     print("Rouge-2 metrics (recall, precision, f1):")
-    print("baseline:", get_rouge_avg(constant1_predictions, val_sums, 2))
+    print("baseline:", get_rouge_avg(constant_predictions, val_sums, 2))
     print("logistic:", get_rouge_avg(lr_predictions, val_sums, 2))
     print("sumy:", get_rouge_avg(sumy_predictions, val_sums, 2))
     print("TextRank:", get_rouge_avg(text_rank_pred, val_sums, 2))
@@ -266,8 +271,8 @@ def main():
 
     # for i in range(3):
     #     print("baseline:")
-    #     print(constant1_predictions[i])
-    #     print(rouge(process_sentence(constant1_predictions[i]), process_sentence(val_sums[i]), 2))
+    #     print(constant_predictions[i])
+    #     print(rouge(process_sentence(constant_predictions[i]), process_sentence(val_sums[i]), 2))
     #     print()
     #     print("Logistic Regression:")
     #     print(lr_predictions[i])
