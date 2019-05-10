@@ -31,11 +31,11 @@ _TOKENIZER = nltk.tokenize.casual.TweetTokenizer(
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--train_titles',
+    parser.add_argument('-t','--train_titles',
                         type=str,
                         default='train_samples',
                         help='Path to training doc titles')
-    parser.add_argument('--val_titles',
+    parser.add_argument('-v','--val_titles',
                         type=str,
                         default='val_samples',
                         help='Path to validation doc titles')
