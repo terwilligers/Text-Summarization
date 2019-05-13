@@ -95,6 +95,17 @@ def summarize_sumy(doc):
 
 
 '''
+Gets metrics from the dataset
+'''
+def get_metrics(train_docs):
+    vocab = set()
+    for doc in train_docs:
+        for word in tokenize(doc):
+            if word not in vocab:
+                vocab.add(word)
+    return vocab
+
+'''
 Create logistic regression model
 For all training set docs, assign each sentence in summary a 1, and each sentence
 in doc a number between 0 and 1 based on how close to summary sentences it is?
@@ -157,7 +168,11 @@ def get_logistic_regression(train_docs,train_summaries, limit, min_vocab_occur=2
 
     model.fit(data_matrix, train_labels)
 
+<<<<<<< HEAD
     return word2idx, model, vocab, word_counts
+=======
+    return word2idx, model
+>>>>>>> df8ad78896d953490abf7eea5e994f8899d5e00d
 
 '''
 Slightly better than baseline summarizer, based on logistic regression model
@@ -273,17 +288,16 @@ def main():
     train_docs, train_sums = load_labeled_corpus(args.train_titles, limit = limit_num)
     val_docs, val_sums = load_labeled_corpus(args.val_titles, limit = limit_num)
 
+    # print some information about how many docs we loaded and our vocab size
+    train_vocab = get_metrics(train_docs)
+    print('Loaded {0} training docs and {1} validation/test docs.'.format(len(train_docs), len(val_docs)))
+    print('There are {} unique word types in our training vocab overall.'.format(len(train_vocab)))
+
     ## Constant prediction, using lede-3
     constant_predictions = np.array([summarize_doc_constant(v, 3) for v in tqdm.tqdm(val_docs)])
 
     #logitic regression implementation
-    vocab_lr, model_lr, train_vocab, train_word_counts =  get_logistic_regression(train_docs, train_sums, limit_num)
-
-    # print some information about how many docs we loaded and our vocab size
-    print('Loaded {0} training docs and {1} validation/test docs.'.format(len(train_docs), len(val_docs)))
-    print('Our training vocab contains {} word types with a frequency greater than our cutoff.'.format(len(train_vocab)))
-    print('There are {} unique word types in our training vocab overall.'.format(len(train_word_counts)))
-
+    vocab_lr, model_lr =  get_logistic_regression(train_docs, train_sums, limit_num)
     lr_predictions = np.array([summarize_logistic_reg(v, vocab_lr, model_lr) for v in tqdm.tqdm(val_docs)])
 
     #api prediction
