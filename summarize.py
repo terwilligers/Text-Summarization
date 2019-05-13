@@ -168,11 +168,7 @@ def get_logistic_regression(train_docs,train_summaries, limit, min_vocab_occur=2
 
     model.fit(data_matrix, train_labels)
 
-<<<<<<< HEAD
-    return word2idx, model, vocab, word_counts
-=======
     return word2idx, model
->>>>>>> df8ad78896d953490abf7eea5e994f8899d5e00d
 
 '''
 Slightly better than baseline summarizer, based on logistic regression model
