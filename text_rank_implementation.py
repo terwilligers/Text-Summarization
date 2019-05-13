@@ -129,6 +129,8 @@ def get_similarity(s1, s2):
     for w in words1:
         if w in words2_set:
             overlap += 1
+    if math.log(len(words1)) + math.log(len(words2)) == 0:
+        return overlap
     return overlap / (math.log(len(words1)) + math.log(len(words2)))
 
 
@@ -207,6 +209,8 @@ def main():
                  'One graph to bring them all and in the darkness bind them',
                  'What is this now.',
                  'Are we really out here']
+
+    input2 = ['This','what']
     print(text_rank(input, 3))
 
 if __name__ == '__main__':
