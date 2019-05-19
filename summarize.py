@@ -15,9 +15,13 @@ from text_rank_implementation import text_rank
 from sumy.parsers.html import HtmlParser
 from sumy.parsers.plaintext import PlaintextParser
 from sumy.nlp.tokenizers import Tokenizer
-from sumy.summarizers.lsa import LsaSummarizer as Summarizer
 from sumy.nlp.stemmers import Stemmer
 from sumy.utils import get_stop_words
+
+'''choose sumy summarizer here'''
+from sumy.summarizers.lex_rank import LexRankSummarizer as Summarizer
+#from sumy.summarizers.lsa import LsaSummarizer as Summarizer
+#from sumy.summarizers.text_rank import TextRankSummarizer as Summarizer
 
 '''sumy api settings'''
 LANGUAGE = "english"
@@ -230,7 +234,7 @@ def get_rouge_avg(system_sums, val_sums, n):
         if f1:
             total_f1 += f1
 
-    return total_recall/N, total_precision/N, total_f1/N
+    return 100 * total_recall/N, 100 * total_precision/N, 100 * total_f1/N
 
 def get_rouge_api(system_sums, val_sums, n):
     N = len(system_sums)
@@ -252,7 +256,7 @@ def get_rouge_api(system_sums, val_sums, n):
         if f1:
             total_f1 += f1
 
-    return total_recall/N, total_precision/N, total_f1/N
+    return 100 * total_recall/N, 100 * total_precision/N, 100 * total_f1/N
 
 
 
@@ -302,19 +306,24 @@ def main():
     #TextRank implementation prediction
     text_rank_pred = np.array([summarize_text_rank(v) for v in tqdm.tqdm(val_docs)])
 
-    print("Rouge-2 metrics (recall, precision, f1):")
+    n = 1
+    print("Rouge-{} metrics (recall, precision, f1):".format(n))
 
-    print("baseline:", get_rouge_avg(constant_predictions, val_sums, 2))
-    print("PyRouge baseline:", get_rouge_api(constant_predictions, val_sums, 2))
+    print("baseline:", get_rouge_avg(constant_predictions, val_sums, n))
+    print("PyRouge baseline:", get_rouge_api(constant_predictions, val_sums, n))
+    print()
 
-    print("logistic:", get_rouge_avg(lr_predictions, val_sums, 2))
-    print("PyRouge logistic:", get_rouge_api(lr_predictions, val_sums, 2))
+    print("logistic:", get_rouge_avg(lr_predictions, val_sums, n))
+    print("PyRouge logistic:", get_rouge_api(lr_predictions, val_sums, n))
+    print()
 
-    print("sumy:", get_rouge_avg(sumy_predictions, val_sums, 2))
-    print("PyRouge sumy:", get_rouge_api(sumy_predictions, val_sums, 2))
+    print("sumy:", get_rouge_avg(sumy_predictions, val_sums, n))
+    print("PyRouge sumy:", get_rouge_api(sumy_predictions, val_sums, n))
+    print()
 
-    print("TextRank:", get_rouge_avg(text_rank_pred, val_sums, 2))
-    print("PyRouge TextRank:", get_rouge_api(text_rank_pred, val_sums, 2))
+    print("TextRank:", get_rouge_avg(text_rank_pred, val_sums, n))
+    print("PyRouge TextRank:", get_rouge_api(text_rank_pred, val_sums, n))
+    print()
 
 
 

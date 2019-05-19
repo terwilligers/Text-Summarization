@@ -119,6 +119,8 @@ def construct_graph(sentences):
 '''
 Computes the similarity score between 2 sentences
 Similarity(s1, s2) = number of words that appear in both s1 and s2 / (log(|s1|) + log(|s2|))
+
+--could maybe use average word2vec embedding or so, look at other similarity functions
 '''
 def get_similarity(s1, s2):
     words1 = s1.getWords()

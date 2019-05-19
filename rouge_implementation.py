@@ -30,7 +30,7 @@ def safe_division(num, deno):
 
 def rouge(system_pred, reference, n = 2, alpha = 0.5):
 	"""
-	@param system_pred: a list that represents the machine generated summary (You can use the process_sentence function 
+	@param system_pred: a list that represents the machine generated summary (You can use the process_sentence function
 	to generate the list from a string
 	@reference: a list that represents the human generated summary
 	@n: n-gram
@@ -41,12 +41,12 @@ def rouge(system_pred, reference, n = 2, alpha = 0.5):
 	if n <= min(len(system_pred), len(reference)):
 		recall = overlap/(len(reference) - n + 1)
 		precision = overlap/(len(system_pred) - n + 1)
-		f1 = safe_division(recall * precision,(alpha * recall + (1- alpha) * precision)) 
+		f1 = safe_division(recall * precision,(alpha * recall + (1- alpha) * precision))
 		return recall, precision, f1
 	else:
 		print('n is too big')
 
-	
+
 
 
 if __name__ == "__main__":
