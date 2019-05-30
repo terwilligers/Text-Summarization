@@ -11,6 +11,8 @@ Source for algorithmic description: https://www.aclweb.org/anthology/P04-3020
 import nltk
 import math
 
+from gensim.models.keyedvectors import KeyedVectors
+
 global _TOKENIZER
 _TOKENIZER = nltk.tokenize.casual.TweetTokenizer(
     preserve_case=False)
@@ -119,8 +121,6 @@ def construct_graph(sentences):
 '''
 Computes the similarity score between 2 sentences
 Similarity(s1, s2) = number of words that appear in both s1 and s2 / (log(|s1|) + log(|s2|))
-
---could maybe use average word2vec embedding or so, look at other similarity functions
 '''
 def get_similarity(s1, s2):
     words1 = s1.getWords()
@@ -203,6 +203,7 @@ def text_rank(sentences, limit):
 
 
 def main():
+
     input = ['This is it, one graph to rule them all.',
                  'One graph to find them',
                  'One graph to bring them all and in the darkness bind them',

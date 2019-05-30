@@ -90,7 +90,7 @@ def load_labeled_corpus(fname, limit):
 Returns a summary using the sumy API
 The structure of the sumy API requires writing our document to a temporary file
 '''
-def summarize_sumy(doc, ):
+def summarize_sumy(doc, case):
     summary = ""
     file_doc = open("temp.txt", "w", encoding = 'utf-8')
     file_doc.write(doc)
@@ -98,7 +98,10 @@ def summarize_sumy(doc, ):
 
     parser = PlaintextParser.from_file("temp.txt", Tokenizer(LANGUAGE))
     stemmer = Stemmer(LANGUAGE)
-    summarizer = LexRankSummarizer(stemmer)
+    if case == 1:
+        summarizer = LexRankSummarizer(stemmer)
+    else:
+        summarizer = LsaSummarizer(stemmer)
     summarizer.stop_words = get_stop_words(LANGUAGE)
     for sentence in summarizer(parser.document, SENTENCES_COUNT):
         summary += str(sentence) + ' '
@@ -202,29 +205,35 @@ def main():
     print('There are {} unique word types in our validation vocab overall.'.format(len(val_vocab)))
 
     ## Constant prediction, using lede-3
-    constant_predictions = np.array([summarize_doc_constant(v, 3) for v in tqdm.tqdm(val_docs)])
+    constant_n = 3
+    constant_predictions = np.array([summarize_doc_constant(v, constant_n) for v in tqdm.tqdm(val_docs)])
 
     #api prediction
-    sumy_predictions = np.array([summarize_sumy(v) for v in tqdm.tqdm(val_docs)])
+    sumy_lexrank_predictions = np.array([summarize_sumy(v, 1) for v in tqdm.tqdm(val_docs)])
+    sumy_lsa_predictions = np.array([summarize_sumy(v, 2) for v in tqdm.tqdm(val_docs)])
 
     #TextRank implementation prediction
     text_rank_pred = np.array([summarize_text_rank(v) for v in tqdm.tqdm(val_docs)])
 
-    n = 1
-    print("Rouge-{} metrics (recall, precision, f1):".format(n))
+    for n in range(1,3):
+        print("Rouge-{} metrics (recall, precision, f1):".format(n))
 
-    print("baseline:", get_rouge_avg(constant_predictions, val_sums, n))
-    print("PyRouge baseline:", get_rouge_api(constant_predictions, val_sums, n))
-    print()
+        print("lede-{} baseline:".format(constant_n), get_rouge_avg(constant_predictions, val_sums, n))
+        print("PyRouge:", get_rouge_api(constant_predictions, val_sums, n))
+        print()
 
-    print("TextRank:", get_rouge_avg(text_rank_pred, val_sums, n))
-    print("PyRouge TextRank:", get_rouge_api(text_rank_pred, val_sums, n))
-    print()
+        print("TextRank:", get_rouge_avg(text_rank_pred, val_sums, n))
+        print("PyRouge:", get_rouge_api(text_rank_pred, val_sums, n))
+        print()
 
 
-    print("sumy:", get_rouge_avg(sumy_predictions, val_sums, n))
-    print("PyRouge sumy:", get_rouge_api(sumy_predictions, val_sums, n))
-    print()
+        print("LexRank sumy:", get_rouge_avg(sumy_lexrank_predictions, val_sums, n))
+        print("PyRouge:", get_rouge_api(sumy_lexrank_predictions, val_sums, n))
+        print()
+
+        print("LSA sumy:", get_rouge_avg(sumy_lsa_predictions, val_sums, n))
+        print("PyRouge sumy:", get_rouge_api(sumy_lsa_predictions, val_sums, n))
+        print()
 
 
 
