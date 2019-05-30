@@ -5,8 +5,8 @@ import tqdm
 import sklearn.metrics
 import collections
 import math
-from rouge_score import rouge_n
 
+from rouge_score import rouge_n
 from rouge_implementation import rouge
 from rouge_implementation import process_sentence
 from text_rank_implementation import text_rank
@@ -18,10 +18,10 @@ from sumy.nlp.tokenizers import Tokenizer
 from sumy.nlp.stemmers import Stemmer
 from sumy.utils import get_stop_words
 
-'''choose sumy summarizer here'''
-from sumy.summarizers.lex_rank import LexRankSummarizer as Summarizer
-#from sumy.summarizers.lsa import LsaSummarizer as Summarizer
-#from sumy.summarizers.text_rank import TextRankSummarizer as Summarizer
+'''variety of sumy summarizers'''
+from sumy.summarizers.lex_rank import LexRankSummarizer
+from sumy.summarizers.lsa import LsaSummarizer
+from sumy.summarizers.text_rank import TextRankSummarizer
 
 '''sumy api settings'''
 LANGUAGE = "english"
@@ -43,6 +43,11 @@ def parse_args():
                         type=str,
                         default='val_samples',
                         help='Path to validation doc titles')
+
+    parser.add_argument('--limit',
+                        type=int,
+                        default=1000,
+                        help='Number of documents to summarize')
     return parser.parse_args()
 
 
@@ -55,7 +60,9 @@ def tokenize(string):
 
 
 '''
-Load the corpus, based on the structure of our sample files
+Load the corpus, based on the structure of our sample files, which is a document
+followed by two new lines followed by a summary followed by two new lines...
+
 '''
 def load_labeled_corpus(fname, limit):
     docs = []
@@ -81,8 +88,9 @@ def load_labeled_corpus(fname, limit):
 
 '''
 Returns a summary using the sumy API
+The structure of the sumy API requires writing our document to a temporary file
 '''
-def summarize_sumy(doc):
+def summarize_sumy(doc, ):
     summary = ""
     file_doc = open("temp.txt", "w", encoding = 'utf-8')
     file_doc.write(doc)
@@ -90,7 +98,7 @@ def summarize_sumy(doc):
 
     parser = PlaintextParser.from_file("temp.txt", Tokenizer(LANGUAGE))
     stemmer = Stemmer(LANGUAGE)
-    summarizer = Summarizer(stemmer)
+    summarizer = LexRankSummarizer(stemmer)
     summarizer.stop_words = get_stop_words(LANGUAGE)
     for sentence in summarizer(parser.document, SENTENCES_COUNT):
         summary += str(sentence) + ' '
@@ -109,109 +117,7 @@ def get_metrics(train_docs):
                 vocab.add(word)
     return vocab
 
-'''
-Create logistic regression model
-For all training set docs, assign each sentence in summary a 1, and each sentence
-in doc a number between 0 and 1 based on how close to summary sentences it is?
-Right now our features are the words, and docs are assigned 0, while summaries are assigned 1
-'''
-def get_logistic_regression(train_docs,train_summaries, limit, min_vocab_occur=20):
 
-    import sklearn.linear_model
-    import sklearn.preprocessing
-    import sklearn.pipeline
-
-    model = sklearn.pipeline.Pipeline([('scaler', sklearn.preprocessing.StandardScaler()),
-                                       ('model', sklearn.linear_model.LogisticRegressionCV(Cs=5))])
-
-    #create vocab
-    word_counts = collections.Counter()
-    for doc in train_docs:
-        for word in tokenize(doc):
-            word_counts.update(word)
-
-    vocab = [w for w, c in word_counts.items() if c >= min_vocab_occur]
-    word2idx = {w:idx for idx, w in enumerate(vocab)}
-
-    #Find total number of sentences
-    count = 0
-    for doc in train_docs:
-        for sentence in nltk.sent_tokenize(doc):
-            count += 1
-    for doc in train_summaries:
-        for sentence in nltk.sent_tokenize(doc):
-            count += 1
-
-    data_matrix = np.zeros((count, len(vocab)))
-    train_labels = np.zeros(count)
-
-    #loop through each sentence and create word vectors
-    #currently assigning doc sentences to 0, and sum sentences to 1, but that should change
-    offset = 0
-    for i,doc in enumerate(train_docs):
-        summary = train_summaries[i]
-        doc_sentences = nltk.sent_tokenize(doc)
-        sum_sentences = nltk.sent_tokenize(summary)
-
-        for s in doc_sentences:
-            words = tokenize(s)
-            for word in words:
-                if word in word2idx:
-                    data_matrix[offset, word2idx[word]] += 1
-            offset += 1
-            #maybe assign some train labels to 1 here, say calculate overlap vocab from sum, and assign 1 if enough overlap?
-
-        #currently assigning only sum sentences to 1
-        for s in sum_sentences:
-            words = tokenize(s)
-            for word in words:
-                if word in word2idx:
-                    data_matrix[offset, word2idx[word]] += 1
-            train_labels[offset] = 1
-            offset += 1
-
-    model.fit(data_matrix, train_labels)
-
-    return word2idx, model
-
-'''
-Slightly better than baseline summarizer, based on logistic regression model
-
-For each test/val set doc use logistic regression to assign each sentence
-to a predict_probability between 0 and 1, then select sentences based on this.
-
---To start lets just assign 0's and 1's?
-for each sentence we assign class, and then sort and take top 4 as summary.
-
---Problems: Considers sentences across all docs, so all its really doing is picking out
-sentences that look like previous sum sentences, but not like previous doc sentences, is this
-really what we want?
-'''
-def summarize_logistic_reg(doc, vocab_lr, model_lr):
-    sentences = nltk.sent_tokenize(doc)
-    results = []
-    summary = ""
-    #create word count vectors for each sentence.
-    for i,s in enumerate(sentences):
-        term_count_vector = np.zeros((1,len(vocab_lr)))
-        words = tokenize(s)
-        for w in words:
-            if w in vocab_lr:
-                term_count_vector[0][vocab_lr[w]] += 1
-
-        #gets logistic regression probabilities based on sentence words.
-        output = model_lr.predict_proba(term_count_vector)[0]
-        results.append(output.tolist() +[i])
-
-    #take top 4 as summary, then sort back into initial order
-    results.sort(key=lambda x: x[0])
-    top4 = results[:4]
-    top4.sort(key=lambda x: x[2])
-    for i in range(3):
-        if i >= len(sentences):
-            break
-        summary = summary + ' ' + sentences[top4[i][2]]
-    return summary
 
 '''
 Uses our rouge implementation to compute summarization metrics
@@ -236,6 +142,9 @@ def get_rouge_avg(system_sums, val_sums, n):
 
     return 100 * total_recall/N, 100 * total_precision/N, 100 * total_f1/N
 
+'''
+Calls an api ROUGE implementation, which we compare our implementation too.
+'''
 def get_rouge_api(system_sums, val_sums, n):
     N = len(system_sums)
     total_recall = 0
@@ -261,8 +170,7 @@ def get_rouge_api(system_sums, val_sums, n):
 
 
 '''
-Summarization using TextRank
-Seems to favor longer sentences, some of which may be tokenized badly
+Summarization using our better than baseline TextRank implementation
 '''
 def summarize_text_rank(doc):
     sentences = nltk.sent_tokenize(doc)
@@ -283,22 +191,18 @@ def summarize_doc_constant(doc, n):
 
 
 def main():
-    limit_num = 100
     args = parse_args()
+    limit_num = args.limit
     train_docs, train_sums = load_labeled_corpus(args.train_titles, limit = limit_num)
     val_docs, val_sums = load_labeled_corpus(args.val_titles, limit = limit_num)
 
     # print some information about how many docs we loaded and our vocab size
-    train_vocab = get_metrics(train_docs)
+    val_vocab = get_metrics(val_docs)
     print('Loaded {0} training docs and {1} validation/test docs.'.format(len(train_docs), len(val_docs)))
-    print('There are {} unique word types in our training vocab overall.'.format(len(train_vocab)))
+    print('There are {} unique word types in our validation vocab overall.'.format(len(val_vocab)))
 
     ## Constant prediction, using lede-3
     constant_predictions = np.array([summarize_doc_constant(v, 3) for v in tqdm.tqdm(val_docs)])
-
-    #logitic regression implementation
-    vocab_lr, model_lr =  get_logistic_regression(train_docs, train_sums, limit_num)
-    lr_predictions = np.array([summarize_logistic_reg(v, vocab_lr, model_lr) for v in tqdm.tqdm(val_docs)])
 
     #api prediction
     sumy_predictions = np.array([summarize_sumy(v) for v in tqdm.tqdm(val_docs)])
@@ -313,16 +217,13 @@ def main():
     print("PyRouge baseline:", get_rouge_api(constant_predictions, val_sums, n))
     print()
 
-    print("logistic:", get_rouge_avg(lr_predictions, val_sums, n))
-    print("PyRouge logistic:", get_rouge_api(lr_predictions, val_sums, n))
+    print("TextRank:", get_rouge_avg(text_rank_pred, val_sums, n))
+    print("PyRouge TextRank:", get_rouge_api(text_rank_pred, val_sums, n))
     print()
+
 
     print("sumy:", get_rouge_avg(sumy_predictions, val_sums, n))
     print("PyRouge sumy:", get_rouge_api(sumy_predictions, val_sums, n))
-    print()
-
-    print("TextRank:", get_rouge_avg(text_rank_pred, val_sums, n))
-    print("PyRouge TextRank:", get_rouge_api(text_rank_pred, val_sums, n))
     print()
 
 
@@ -331,10 +232,6 @@ def main():
     #     print("baseline:")
     #     print(constant_predictions[i])
     #     print(rouge(process_sentence(constant_predictions[i]), process_sentence(val_sums[i]), 2))
-    #     print()
-    #     print("Logistic Regression:")
-    #     print(lr_predictions[i])
-    #     print(rouge(process_sentence(lr_predictions[i]), process_sentence(val_sums[i]), 2))
     #     print()
     #     print("sumy summary:")
     #     print(sumy_predictions[i])

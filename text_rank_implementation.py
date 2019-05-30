@@ -175,9 +175,6 @@ def page_rank(graph, d=.85):
                 converging = True
             s_i.setRank(1-d+d*score)
 
-        # for id_i, s_i in sentences.items():
-        #     print(id_i, s_i.getRank())
-
     return
 
 '''
