@@ -49,6 +49,10 @@ def parse_args():
                         type=int,
                         default=1000,
                         help='Number of documents to summarize')
+    parser.add_argument('--word2vec_init',
+                        type=int,
+                        default=0,
+                        help='Whether to compute TextRank similarity scores with word2vec')
     return parser.parse_args()
 
 
@@ -213,13 +217,14 @@ def main():
     sumy_lexrank_predictions = np.array([summarize_sumy(v, 1) for v in tqdm.tqdm(val_docs)])
     sumy_lsa_predictions = np.array([summarize_sumy(v, 2) for v in tqdm.tqdm(val_docs)])
 
-    #TextRank implementation prediction
-    text_rank_pred = np.array([summarize_text_rank(v) for v in tqdm.tqdm(val_docs)])
+    #TextRank implementation prediction, if word2vec_init == 1, then we compute similarities with word2vec
+    if args.word2vec_init == 0:
+        text_rank_pred = np.array([summarize_text_rank(v) for v in tqdm.tqdm(val_docs)])
+    else:
+        wv_model = KeyedVectors.load_word2vec_format("GoogleNews-vectors-negative300.bin", binary=True, limit=100000)
+        text_rank_pred_w2vec = np.array([summarize_text_rank(v, wv_model=wv_model) for v in tqdm.tqdm(val_docs)])
 
-    #TextRank implementation with word2vec
-    # wv_model = KeyedVectors.load_word2vec_format("GoogleNews-vectors-negative300.bin", binary=True, limit=100000)
-    # text_rank_pred_w2vec = np.array([summarize_text_rank(v, wv_model=wv_model) for v in tqdm.tqdm(val_docs)])
-
+    #displays rouge metrics
     for n in range(1,3):
         print("Rouge-{} metrics (recall, precision, f1):".format(n))
 
@@ -227,13 +232,13 @@ def main():
         print("PyRouge:", get_rouge_api(constant_predictions, val_sums, n))
         print()
 
-        print("TextRank:", get_rouge_avg(text_rank_pred, val_sums, n))
-        print("PyRouge:", get_rouge_api(text_rank_pred, val_sums, n))
+        if args.word2vec_init == 0:
+            print("TextRank:", get_rouge_avg(text_rank_pred, val_sums, n))
+            print("PyRouge:", get_rouge_api(text_rank_pred, val_sums, n))
+        else:
+            print("TextRank with word2vec similarities:", get_rouge_avg(text_rank_pred_w2vec, val_sums, n))
+            print("PyRouge:", get_rouge_api(text_rank_pred_w2vec, val_sums, n))
         print()
-
-        # print("TextRank with word2vec similarities:", get_rouge_avg(text_rank_pred_w2vec, val_sums, n))
-        # print("PyRouge:", get_rouge_api(text_rank_pred_w2vec, val_sums, n))
-        # print()
 
 
         print("LexRank sumy:", get_rouge_avg(sumy_lexrank_predictions, val_sums, n))
@@ -243,25 +248,6 @@ def main():
         print("LSA sumy:", get_rouge_avg(sumy_lsa_predictions, val_sums, n))
         print("PyRouge sumy:", get_rouge_api(sumy_lsa_predictions, val_sums, n))
         print()
-
-
-
-    # for i in range(3):
-    #     print("baseline:")
-    #     print(constant_predictions[i])
-    #     print(rouge(process_sentence(constant_predictions[i]), process_sentence(val_sums[i]), 2))
-    #     print()
-    #     print("sumy summary:")
-    #     print(sumy_predictions[i])
-    #     print(rouge(process_sentence(sumy_predictions[i]), process_sentence(val_sums[i]), 2))
-    #     print()
-    #     print("TextRank summary:")
-    #     print(text_rank_pred[i])
-    #     print(rouge(process_sentence(text_rank_pred[i]), process_sentence(val_sums[i]), 2))
-    #     print()
-    #     print("actual summary:")
-    #     print(val_sums[i])
-    #     print()
 
 
 
