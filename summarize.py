@@ -6,6 +6,7 @@ import sklearn.metrics
 import collections
 import math
 
+from gensim.models.keyedvectors import KeyedVectors
 from rouge_score import rouge_n
 from rouge_implementation import rouge
 from rouge_implementation import process_sentence
@@ -175,9 +176,9 @@ def get_rouge_api(system_sums, val_sums, n):
 '''
 Summarization using our better than baseline TextRank implementation
 '''
-def summarize_text_rank(doc):
+def summarize_text_rank(doc, wv_model=None):
     sentences = nltk.sent_tokenize(doc)
-    summary = text_rank(sentences, 3)
+    summary = text_rank(sentences, 3, wv_model=wv_model)
     return ' '.join(summary)
 
 '''
@@ -215,6 +216,10 @@ def main():
     #TextRank implementation prediction
     text_rank_pred = np.array([summarize_text_rank(v) for v in tqdm.tqdm(val_docs)])
 
+    #TextRank implementation with word2vec
+    # wv_model = KeyedVectors.load_word2vec_format("GoogleNews-vectors-negative300.bin", binary=True, limit=100000)
+    # text_rank_pred_w2vec = np.array([summarize_text_rank(v, wv_model=wv_model) for v in tqdm.tqdm(val_docs)])
+
     for n in range(1,3):
         print("Rouge-{} metrics (recall, precision, f1):".format(n))
 
@@ -225,6 +230,10 @@ def main():
         print("TextRank:", get_rouge_avg(text_rank_pred, val_sums, n))
         print("PyRouge:", get_rouge_api(text_rank_pred, val_sums, n))
         print()
+
+        # print("TextRank with word2vec similarities:", get_rouge_avg(text_rank_pred_w2vec, val_sums, n))
+        # print("PyRouge:", get_rouge_api(text_rank_pred_w2vec, val_sums, n))
+        # print()
 
 
         print("LexRank sumy:", get_rouge_avg(sumy_lexrank_predictions, val_sums, n))

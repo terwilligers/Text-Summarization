@@ -99,7 +99,7 @@ class Graph:
 '''
 Constructs a sentence graph based on similarity scores
 '''
-def construct_graph(sentences):
+def construct_graph(sentences, wv_model=None):
     #construct graph and sentences
     sim_graph = Graph()
     for i,s in enumerate(sentences):
@@ -112,14 +112,17 @@ def construct_graph(sentences):
             #check if already checked this pair
             if id_1 == id_2 or s1.hasNeighbor(id_2):
                 continue
-            similarity = get_similarity(s1, s2)
+            if wv_model:
+                similarity = get_word2vec_similarity(s1, s2, wv_model)
+            else:
+                similarity = get_similarity(s1, s2)
             sim_graph.addEdge(s1, id_1, s2, id_2, similarity)
 
     return sim_graph
 
 
 '''
-Computes the similarity score between 2 sentences
+Computes the similarity score between 2 sentences using word overlap
 Similarity(s1, s2) = number of words that appear in both s1 and s2 / (log(|s1|) + log(|s2|))
 '''
 def get_similarity(s1, s2):
@@ -134,6 +137,18 @@ def get_similarity(s1, s2):
     if math.log(len(words1)) + math.log(len(words2)) == 0:
         return overlap
     return overlap / (math.log(len(words1)) + math.log(len(words2)))
+
+'''
+Computes the similarity score between 2 sentences using average word2vec similarity
+'''
+def get_word2vec_similarity(s1, s2, wv_model):
+    default = .01
+    words1 = [w for w in s1.getWords() if w in wv_model.vocab]
+    words2 = [w for w in s2.getWords() if w in wv_model.vocab]
+    if len(words1) == 0 or len(words2) == 0:
+        return default
+    sim = wv_model.n_similarity(words1, words2)
+    return sim
 
 
 '''
@@ -195,8 +210,11 @@ def select_top_n(graph, n):
 TextRank algorithm
 Takes as input a list of sentences and the summary length, and outputs a summary
 '''
-def text_rank(sentences, limit):
-    sim_graph = construct_graph(sentences)
+def text_rank(sentences, limit, wv_model=None):
+    if wv_model:
+        sim_graph = construct_graph(sentences, wv_model=wv_model)
+    else:
+        sim_graph = construct_graph(sentences)
     page_rank(sim_graph)
     top_n = select_top_n(sim_graph, limit)
     return top_n
@@ -211,7 +229,8 @@ def main():
                  'Are we really out here']
 
     input2 = ['This','what']
-    print(text_rank(input, 3))
+    wv_model = KeyedVectors.load_word2vec_format("GoogleNews-vectors-negative300.bin", binary=True, limit=100000)
+    print(text_rank(input, 3, wv_model=wv_model))
 
 if __name__ == '__main__':
     main()
