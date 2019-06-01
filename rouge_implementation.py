@@ -1,6 +1,4 @@
-
 from collections import defaultdict
-
 
 def process_sentence(sentence):
 	return sentence.lower().split()
@@ -27,7 +25,6 @@ def safe_division(num, deno):
 		return None
 	return num/deno
 
-
 def rouge(system_pred, reference, n = 2, alpha = 0.5):
 	"""
 	@param system_pred: a list that represents the machine generated summary (You can use the process_sentence function
@@ -35,7 +32,6 @@ def rouge(system_pred, reference, n = 2, alpha = 0.5):
 	@reference: a list that represents the human generated summary
 	@n: n-gram
 	@alpha: the parameter for calculating f1 score.
-
 	"""
 	overlap = find_overlap(system_pred, reference, n)
 	if n <= min(len(system_pred), len(reference)):
@@ -46,7 +42,26 @@ def rouge(system_pred, reference, n = 2, alpha = 0.5):
 	else:
 		print('n is too big')
 
+def lcs(system_pred, reference):
+	if len(system_pred) == 0 or len(reference) == 0:
+		return 0
+	elif system_pred[len(system_pred) - 1] == reference[len(reference) - 1]:
+		return 1 + lcs(system_pred[0:len(system_pred) - 1], reference[0:len(reference) - 1])
+	else:
+		return max(lcs(system_pred, reference[0:len(reference) - 1]),
+				   lcs(system_pred[0:len(system_pred) - 1], reference))
 
+def rouge_l(system_pred, reference, alpha = 0.5):
+	"""
+	@param system_pred: a list that represents the machine generated summary (You can use the process_sentence function
+	to generate the list from a string
+	@reference: a list that represents the human generated summary
+	@alpha: the parameter for calculating f1 score.
+	"""
+	recall = lcs(system_pred, reference)/len(reference)
+	precision = lcs(system_pred, reference)/len(system_pred)
+	f1 = safe_division(recall * precision,(alpha * recall + (1- alpha) * precision))
+	return recall, precision, f1
 
 
 if __name__ == "__main__":
@@ -58,9 +73,9 @@ if __name__ == "__main__":
 
 	hypothesis_1 = "King Norodom Sihanouk has declined requests to chair a summit of Cambodia 's top political leaders , saying the meeting would not bring any progress in deadlocked negotiations to form a government .\nGovernment and opposition parties have asked King Norodom Sihanouk to host a summit meeting after a series of post-election negotiations between the two opposition groups and Hun Sen 's party to form a new government failed .\nHun Sen 's ruling party narrowly won a majority in elections in July , but the opposition _ claiming widespread intimidation and fraud _ has denied Hun Sen the two-thirds vote in parliament required to approve the next government .\n"
 
-
-
 	reference_3 = "The cat was under the bed"
 	system_pred_3 = "the cat was found under the bed"
 
-	print(rouge(process_sentence(system_pred_3), process_sentence(reference_3), 2))
+	print(lcs(process_sentence(system_pred_3), process_sentence(reference_3)))
+
+	print(rouge_l(process_sentence(system_pred_3), process_sentence(reference_3)))
