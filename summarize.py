@@ -226,7 +226,9 @@ def main():
 
     #displays rouge metrics
     for n in range(1,3):
+        print("Rouge evaluation metrics, each first line is our implementation, and the following is an external api.")
         print("Rouge-{} metrics (recall, precision, f1):".format(n))
+        print()
 
         print("lede-{} baseline:".format(constant_n), get_rouge_avg(constant_predictions, val_sums, n))
         print("PyRouge:", get_rouge_api(constant_predictions, val_sums, n))
