@@ -47,7 +47,7 @@ def parse_args():
 
     parser.add_argument('--limit',
                         type=int,
-                        default=10,
+                        default=1000,
                         help='Number of documents to summarize')
     parser.add_argument('--word2vec_init',
                         type=int,
@@ -159,7 +159,7 @@ def get_rouge_avg(system_sums, val_sums, method):
             if f1:
                 total_f1 += f1
 
-    return 100 * total_recall/N, 100 * total_precision/N, 100 * total_f1/N
+    return round(100 * total_recall/N, 2), round(100 * total_precision/N, 2), round(100 * total_f1/N, 2)
 
 '''
 Calls an api ROUGE implementation, which we compare our implementation too.
@@ -196,7 +196,7 @@ def get_rouge_api(system_sums, val_sums, method):
             if f1:
                 total_f1 += f1
 
-    return 100 * total_recall/N, 100 * total_precision/N, 100 * total_f1/N
+    return round(100 * total_recall/N, 2), round(100 * total_precision/N,2), round(100 * total_f1/N, 2)
 
 
 
