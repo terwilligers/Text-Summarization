@@ -148,7 +148,7 @@ def get_rouge_avg(system_sums, val_sums, n):
         if f1:
             total_f1 += f1
 
-    return 100 * total_recall/N, 100 * total_precision/N, 100 * total_f1/N
+    return round(100 * total_recall/N, 2), round(100 * total_precision/N, 2), round(100 * total_f1/N, 2)
 
 '''
 Calls an api ROUGE implementation, which we compare our implementation too.
@@ -173,7 +173,7 @@ def get_rouge_api(system_sums, val_sums, n):
         if f1:
             total_f1 += f1
 
-    return 100 * total_recall/N, 100 * total_precision/N, 100 * total_f1/N
+    return round(100 * total_recall/N, 2), round(100 * total_precision/N, 2), round(100 * total_f1/N, 2)
 
 
 
@@ -225,8 +225,8 @@ def main():
         text_rank_pred_w2vec = np.array([summarize_text_rank(v, wv_model=wv_model) for v in tqdm.tqdm(val_docs)])
 
     #displays rouge metrics
+    print("Rouge evaluation metrics, each first line is our implementation, and the following is an external api.")
     for n in range(1,3):
-        print("Rouge evaluation metrics, each first line is our implementation, and the following is an external api.")
         print("Rouge-{} metrics (recall, precision, f1):".format(n))
         print()
 
