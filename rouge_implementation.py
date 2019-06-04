@@ -25,7 +25,7 @@ def safe_division(num, deno):
 		return None
 	return num/deno
 
-def rouge(system_pred, reference, n = 2, alpha = 0.5):
+def rouge(system_pred, reference, method = 2, alpha = 0.5):
 	"""
 	@param system_pred: a list that represents the machine generated summary (You can use the process_sentence function
 	to generate the list from a string
@@ -33,23 +33,57 @@ def rouge(system_pred, reference, n = 2, alpha = 0.5):
 	@n: n-gram
 	@alpha: the parameter for calculating f1 score.
 	"""
-	overlap = find_overlap(system_pred, reference, n)
-	if n <= min(len(system_pred), len(reference)):
-		recall = overlap/(len(reference) - n + 1)
-		precision = overlap/(len(system_pred) - n + 1)
-		f1 = safe_division(recall * precision,(alpha * recall + (1- alpha) * precision))
-		return recall, precision, f1
+	if method != 'l':
+		overlap = find_overlap(system_pred, reference, method)
+		if method <= min(len(system_pred), len(reference)):
+			recall = overlap/(len(reference) - method + 1)
+			precision = overlap/(len(system_pred) - method + 1)
+			f1 = safe_division(recall * precision,(alpha * recall + (1- alpha) * precision))
+			return recall, precision, f1
+		else:
+			print('n is too big')
 	else:
-		print('n is too big')
+		return rouge_l(system_pred, reference)
 
-def lcs(system_pred, reference):
-	if len(system_pred) == 0 or len(reference) == 0:
-		return 0
-	elif system_pred[len(system_pred) - 1] == reference[len(reference) - 1]:
-		return 1 + lcs(system_pred[0:len(system_pred) - 1], reference[0:len(reference) - 1])
-	else:
-		return max(lcs(system_pred, reference[0:len(reference) - 1]),
-				   lcs(system_pred[0:len(system_pred) - 1], reference))
+def lcs(X , Y): 
+    # find the length of the strings 
+    m = len(X) 
+    n = len(Y) 
+  
+    # declaring the array for storing the dp values 
+    L = [[None]*(n+1) for i in range(m+1)] 
+  
+    """Following steps build L[m+1][n+1] in bottom up fashion 
+    Note: L[i][j] contains length of LCS of X[0..i-1] 
+    and Y[0..j-1]"""
+    for i in range(m+1): 
+        for j in range(n+1): 
+            if i == 0 or j == 0 : 
+                L[i][j] = 0
+            elif X[i-1] == Y[j-1]: 
+                L[i][j] = L[i-1][j-1]+1
+            else: 
+                L[i][j] = max(L[i-1][j] , L[i][j-1]) 
+  
+    # L[m][n] contains the length of LCS of X[0..n-1] & Y[0..m-1] 
+    return L[m][n] 
+
+
+# def lcs(system_pred, reference, m, n):
+# 	print(m, n)
+
+# 	if m == 0 or n == 0:
+# 		#print(reference)
+
+# 		return 0
+# 	elif system_pred[m - 1] == reference[n - 1]:
+# 		return 1 + lcs(system_pred, reference, m - 1, n - 1)
+# 	else:
+# 		# print(reference[0:len(reference) - 1])
+# 		print(system_pred[0:m - 1])
+
+# 		return max(lcs(system_pred, reference, m, n - 1),
+# 				   lcs(system_pred, reference, m - 1, n))
 
 def rouge_l(system_pred, reference, alpha = 0.5):
 	"""
@@ -58,8 +92,9 @@ def rouge_l(system_pred, reference, alpha = 0.5):
 	@reference: a list that represents the human generated summary
 	@alpha: the parameter for calculating f1 score.
 	"""
-	recall = lcs(system_pred, reference)/len(reference)
-	precision = lcs(system_pred, reference)/len(system_pred)
+	lcs_val = lcs(system_pred, reference)
+	recall = lcs_val/len(reference)
+	precision = lcs_val/len(system_pred)
 	f1 = safe_division(recall * precision,(alpha * recall + (1- alpha) * precision))
 	return recall, precision, f1
 
@@ -68,14 +103,19 @@ if __name__ == "__main__":
 	reference1 = 'Nobu is so clever'
 	system_pred1 = 'Nobu is so smart'
 
-	hypothesis_2 = "China 's government said Thursday that two prominent dissidents arrested this week are suspected of endangering national security _ the clearest sign yet Chinese leaders plan to quash a would-be opposition party .\nOne leader of a suppressed new political party will be tried on Dec. 17 on a charge of colluding with foreign enemies of China '' to incite the subversion of state power , '' according to court documents given to his wife on Monday .\nWith attorneys locked up , harassed or plain scared , two prominent dissidents will defend themselves against charges of subversion Thursday in China 's highest-profile dissident trials in two years .\n"
-	reference_2 = "Hurricane Mitch, category 5 hurricane, brought widespread death and destruction to Central American.\nEspecially hard hit was Honduras where an estimated 6,076 people lost their lives.\nThe hurricane, which lingered off the coast of Honduras for 3 days before moving off, flooded large areas, destroying crops and property.\nThe U.S. and European Union were joined by Pope John Paul II in a call for money and workers to help the stricken area.\nPresident Clinton sent Tipper Gore, wife of Vice President Gore to the area to deliver much needed supplies to the area, demonstrating U.S. commitment to the recovery of the region.\n"
+	hypothesis_2 = "China 's government said Thursday that two prominent dissidents arrested this week are suspected of endangering national security _ the clearest sign yet Chinese leaders plan to quash a would-be opposition party .\nOne leader of a suppressed new political party will be tried on Dec. 17 on a charge of colluding with foreign enemies of "
+	reference_2 = "Hurricane Mitch, category 5 hurricane, brought widespread death and destruction to Central American.\nEspecially hard hit was Honduras where an estimated 6,076 people lost their lives.\nThe hurricane, which lingered off the coast of Honduras for 3 days before moving off, flooded large areas, destroying crops and property.\nThe U.S. and "
 
 	hypothesis_1 = "King Norodom Sihanouk has declined requests to chair a summit of Cambodia 's top political leaders , saying the meeting would not bring any progress in deadlocked negotiations to form a government .\nGovernment and opposition parties have asked King Norodom Sihanouk to host a summit meeting after a series of post-election negotiations between the two opposition groups and Hun Sen 's party to form a new government failed .\nHun Sen 's ruling party narrowly won a majority in elections in July , but the opposition _ claiming widespread intimidation and fraud _ has denied Hun Sen the two-thirds vote in parliament required to approve the next government .\n"
 
-	reference_3 = "The cat was under the bed"
-	system_pred_3 = "the cat was found under the bed"
+	reference_3 = "hhhhhhhhhhhh"
+	system_pred_3 = "Thiis is hhhhhhhhhhhh"
 
-	print(lcs(process_sentence(system_pred_3), process_sentence(reference_3)))
+	print(process_sentence(reference_2))
 
-	print(rouge_l(process_sentence(system_pred_3), process_sentence(reference_3)))
+	print(lcs(process_sentence(hypothesis_2), process_sentence(reference_2)))
+
+	#print(lcs(process_sentence(hypothesis_2), process_sentence(reference_2), len(process_sentence(hypothesis_2)), len(process_sentence(reference_2))))
+
+	print(rouge_l(process_sentence(hypothesis_2), process_sentence(reference_2)))
+

@@ -7,7 +7,7 @@ import collections
 import math
 
 from gensim.models.keyedvectors import KeyedVectors
-from rouge_score import rouge_n
+from rouge_score import *
 from rouge_implementation import rouge
 from rouge_implementation import process_sentence
 from text_rank_implementation import text_rank
@@ -47,7 +47,7 @@ def parse_args():
 
     parser.add_argument('--limit',
                         type=int,
-                        default=1000,
+                        default=10,
                         help='Number of documents to summarize')
     parser.add_argument('--word2vec_init',
                         type=int,
@@ -131,49 +131,72 @@ def get_metrics(train_docs):
 Uses our rouge implementation to compute summarization metrics
 We take the average over every summary
 '''
-def get_rouge_avg(system_sums, val_sums, n):
+def get_rouge_avg(system_sums, val_sums, method):
     N = len(system_sums)
     total_recall = 0
     total_precision = 0
     total_f1 = 0
     for i,sys_sum in enumerate(system_sums):
-        #error handle check
-        if len(process_sentence(sys_sum)) < n:
-            N -= 1
-            continue
-        val_sum = val_sums[i]
-        (recall, precision, f1) = rouge(process_sentence(sys_sum), process_sentence(val_sum), n)
-        total_recall += recall
-        total_precision += precision
-        if f1:
-            total_f1 += f1
 
-    return round(100 * total_recall/N, 2), round(100 * total_precision/N, 2), round(100 * total_f1/N, 2)
+        if method != 'l':
+        #error handle check
+
+            if len(process_sentence(sys_sum)) < method:
+                N -= 1
+                continue
+            val_sum = val_sums[i]
+            (recall, precision, f1) = rouge(process_sentence(sys_sum), process_sentence(val_sum), method = method)
+            total_recall += recall
+            total_precision += precision
+            if f1:
+                total_f1 += f1
+
+        if method == 'l':
+            val_sum = val_sums[i]
+            (recall, precision, f1) = rouge(process_sentence(sys_sum), process_sentence(val_sum), method = method)
+            total_recall += recall
+            total_precision += precision
+            if f1:
+                total_f1 += f1
+
+    return 100 * total_recall/N, 100 * total_precision/N, 100 * total_f1/N
 
 '''
 Calls an api ROUGE implementation, which we compare our implementation too.
 '''
-def get_rouge_api(system_sums, val_sums, n):
+def get_rouge_api(system_sums, val_sums, method):
     N = len(system_sums)
     total_recall = 0
     total_precision = 0
     total_f1 = 0
     for i,sys_sum in enumerate(system_sums):
-        #error handle check
-        if len(process_sentence(sys_sum)) < n:
-            N -= 1
-            continue
-        val_sum = val_sums[i]
-        scores = rouge_n(process_sentence(sys_sum), process_sentence(val_sum), n)
-        recall = scores["r"]
-        precision = scores["p"]
-        f1 = scores["f"]
-        total_recall += recall
-        total_precision += precision
-        if f1:
-            total_f1 += f1
+        if method != 'l':
 
-    return round(100 * total_recall/N, 2), round(100 * total_precision/N, 2), round(100 * total_f1/N, 2)
+        #error handle check
+            if len(process_sentence(sys_sum)) < method:
+                N -= 1
+                continue
+            val_sum = val_sums[i]
+            scores = rouge_n(process_sentence(sys_sum), process_sentence(val_sum), method)
+            recall = scores["r"]
+            precision = scores["p"]
+            f1 = scores["f"]
+            total_recall += recall
+            total_precision += precision
+            if f1:
+                total_f1 += f1
+        if method == 'l':
+            val_sum = val_sums[i]
+            scores = rouge_l_summary_level(process_sentence(sys_sum), process_sentence(val_sum))
+            recall = scores["r"]
+            precision = scores["p"]
+            f1 = scores["f"]
+            total_recall += recall
+            total_precision += precision
+            if f1:
+                total_f1 += f1
+
+    return 100 * total_recall/N, 100 * total_precision/N, 100 * total_f1/N
 
 
 
@@ -225,10 +248,8 @@ def main():
         text_rank_pred_w2vec = np.array([summarize_text_rank(v, wv_model=wv_model) for v in tqdm.tqdm(val_docs)])
 
     #displays rouge metrics
-    print("Rouge evaluation metrics, each first line is our implementation, and the following is an external api.")
-    for n in range(1,3):
+    for n in list(range(1,3)) + ['l']:
         print("Rouge-{} metrics (recall, precision, f1):".format(n))
-        print()
 
         print("lede-{} baseline:".format(constant_n), get_rouge_avg(constant_predictions, val_sums, n))
         print("PyRouge:", get_rouge_api(constant_predictions, val_sums, n))
@@ -250,6 +271,8 @@ def main():
         print("LSA sumy:", get_rouge_avg(sumy_lsa_predictions, val_sums, n))
         print("PyRouge sumy:", get_rouge_api(sumy_lsa_predictions, val_sums, n))
         print()
+
+
 
 
 
