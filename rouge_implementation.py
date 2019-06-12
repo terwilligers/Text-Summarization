@@ -1,8 +1,18 @@
 from collections import defaultdict
 
+"""
+This function tokenizes a string into a list of lowercased words.
+@sentence: a string (representing the sentence)
+"""
 def process_sentence(sentence):
 	return sentence.lower().split()
 
+"""
+This function creates a dictionary of n_grams mapped to their counts that we
+use to count overlaps when calculating rouge scores.
+@sentence_list: the list representation of the sentence
+@n: n-gram
+"""
 def create_dict(sentence_list, n):
 	new_list = [tuple(sentence_list[i:i+n]) for i in range(0, len(sentence_list) - n + 1)]
 	count_dict = defaultdict(int)
@@ -12,6 +22,12 @@ def create_dict(sentence_list, n):
 		count_dict[n_gram] += 1
 	return count_dict
 
+"""
+This function calculates the number of overlapping n-grams in the reference
+and system-generated summaries.
+@system_pred: the list representation of the system generated summary
+@reference: the list representation of the reference summary
+"""
 def find_overlap(system_pred, reference, n):
 	system_dict = create_dict(system_pred, n)
 	reference_dict = create_dict(reference, n)
@@ -20,19 +36,22 @@ def find_overlap(system_pred, reference, n):
 		overlap += min(system_dict[n_gram], reference_dict[n_gram])
 	return overlap
 
+"""
+This function avoids division by zero
+"""
 def safe_division(num, deno):
 	if deno == 0:
 		return None
 	return num/deno
 
+"""
+@param system_pred: a list that represents the machine generated summary (You can use the process_sentence function
+to generate the list from a string
+@reference: a list that represents the human generated summary
+@n: n-gram
+@alpha: the parameter for calculating f1 score.
+"""
 def rouge(system_pred, reference, method = 2, alpha = 0.5):
-	"""
-	@param system_pred: a list that represents the machine generated summary (You can use the process_sentence function
-	to generate the list from a string
-	@reference: a list that represents the human generated summary
-	@n: n-gram
-	@alpha: the parameter for calculating f1 score.
-	"""
 	if method != 'l':
 		overlap = find_overlap(system_pred, reference, method)
 		if method <= min(len(system_pred), len(reference)):
@@ -45,53 +64,41 @@ def rouge(system_pred, reference, method = 2, alpha = 0.5):
 	else:
 		return rouge_l(system_pred, reference)
 
-def lcs(X , Y): 
-    # find the length of the strings 
-    m = len(X) 
-    n = len(Y) 
-  
-    # declaring the array for storing the dp values 
-    L = [[None]*(n+1) for i in range(m+1)] 
-  
-    """Following steps build L[m+1][n+1] in bottom up fashion 
-    Note: L[i][j] contains length of LCS of X[0..i-1] 
+"""
+This function calculates the longest common subsequnce between two sentences (in lists),
+used when calculating the rouge-L score
+@X: First list
+@Y: Second list
+"""
+def lcs(X , Y):
+    m = len(X)
+    n = len(Y)
+
+    # declaring the array for storing the dp values
+    L = [[None]*(n+1) for i in range(m+1)]
+
+    """Following steps build L[m+1][n+1] in bottom up fashion
+    Note: L[i][j] contains length of LCS of X[0..i-1]
     and Y[0..j-1]"""
-    for i in range(m+1): 
-        for j in range(n+1): 
-            if i == 0 or j == 0 : 
+    for i in range(m+1):
+        for j in range(n+1):
+            if i == 0 or j == 0 :
                 L[i][j] = 0
-            elif X[i-1] == Y[j-1]: 
+            elif X[i-1] == Y[j-1]:
                 L[i][j] = L[i-1][j-1]+1
-            else: 
-                L[i][j] = max(L[i-1][j] , L[i][j-1]) 
-  
-    # L[m][n] contains the length of LCS of X[0..n-1] & Y[0..m-1] 
-    return L[m][n] 
+            else:
+                L[i][j] = max(L[i-1][j] , L[i][j-1])
 
+    # L[m][n] contains the length of LCS of X[0..n-1] & Y[0..m-1]
+    return L[m][n]
 
-# def lcs(system_pred, reference, m, n):
-# 	print(m, n)
-
-# 	if m == 0 or n == 0:
-# 		#print(reference)
-
-# 		return 0
-# 	elif system_pred[m - 1] == reference[n - 1]:
-# 		return 1 + lcs(system_pred, reference, m - 1, n - 1)
-# 	else:
-# 		# print(reference[0:len(reference) - 1])
-# 		print(system_pred[0:m - 1])
-
-# 		return max(lcs(system_pred, reference, m, n - 1),
-# 				   lcs(system_pred, reference, m - 1, n))
-
+"""
+@param system_pred: a list that represents the machine generated summary (You can use the process_sentence function
+to generate the list from a string
+@reference: a list that represents the human generated summary
+@alpha: the parameter for calculating f1 score.
+"""
 def rouge_l(system_pred, reference, alpha = 0.5):
-	"""
-	@param system_pred: a list that represents the machine generated summary (You can use the process_sentence function
-	to generate the list from a string
-	@reference: a list that represents the human generated summary
-	@alpha: the parameter for calculating f1 score.
-	"""
 	lcs_val = lcs(system_pred, reference)
 	recall = lcs_val/len(reference)
 	precision = lcs_val/len(system_pred)
@@ -118,4 +125,3 @@ if __name__ == "__main__":
 	#print(lcs(process_sentence(hypothesis_2), process_sentence(reference_2), len(process_sentence(hypothesis_2)), len(process_sentence(reference_2))))
 
 	print(rouge_l(process_sentence(hypothesis_2), process_sentence(reference_2)))
-

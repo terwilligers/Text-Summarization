@@ -67,7 +67,6 @@ def tokenize(string):
 '''
 Load the corpus, based on the structure of our sample files, which is a document
 followed by two new lines followed by a summary followed by two new lines...
-
 '''
 def load_labeled_corpus(fname, limit):
     docs = []
@@ -124,7 +123,6 @@ def get_metrics(train_docs):
             if word not in vocab:
                 vocab.add(word)
     return vocab
-
 
 
 '''
@@ -234,12 +232,15 @@ def main():
 
     ## Constant prediction, using lede-3
     constant_n = 3
+    print("Running lede-n model:")
     constant_predictions = np.array([summarize_doc_constant(v, constant_n) for v in tqdm.tqdm(val_docs)])
 
     #api prediction
+    print("Running sumy api models:")
     sumy_lexrank_predictions = np.array([summarize_sumy(v, 1) for v in tqdm.tqdm(val_docs)])
     sumy_lsa_predictions = np.array([summarize_sumy(v, 2) for v in tqdm.tqdm(val_docs)])
 
+    print("Running TextRank implementation model:")
     #TextRank implementation prediction, if word2vec_init == 1, then we compute similarities with word2vec
     if args.word2vec_init == 0:
         text_rank_pred = np.array([summarize_text_rank(v) for v in tqdm.tqdm(val_docs)])
@@ -248,7 +249,9 @@ def main():
         text_rank_pred_w2vec = np.array([summarize_text_rank(v, wv_model=wv_model) for v in tqdm.tqdm(val_docs)])
 
     #displays rouge metrics
-    for n in list(range(1,3)) + ['l']:
+    print("Rouge metrics, for each we have our implementation followed by PyRouge's implmentation")
+    for n in list(range(1,3)):
+        print('---------------------------------------------------------------')
         print("Rouge-{} metrics (recall, precision, f1):".format(n))
 
         print("lede-{} baseline:".format(constant_n), get_rouge_avg(constant_predictions, val_sums, n))
@@ -272,13 +275,21 @@ def main():
         print("PyRouge sumy:", get_rouge_api(sumy_lsa_predictions, val_sums, n))
         print()
 
-
-
-
-
-
-
-
+    #print Rouge-l scores
+    print('---------------------------------------------------------------')
+    n = 'l'
+    print("Rouge-l metrics (recall, precision, f1) using our Rouge implementation only since the API takes longer to run")
+    print("lede-{} baseline:".format(constant_n), get_rouge_avg(constant_predictions, val_sums, n))
+    print()
+    if args.word2vec_init == 0:
+       print("TextRank:", get_rouge_avg(text_rank_pred, val_sums, n))
+    else:
+       print("TextRank with word2vec similarities:", get_rouge_avg(text_rank_pred_w2vec, val_sums, n))
+    print()
+    print("LexRank sumy:", get_rouge_avg(sumy_lexrank_predictions, val_sums, n))
+    print()
+    print("LSA sumy:", get_rouge_avg(sumy_lsa_predictions, val_sums, n))
+    print()
 
 
 if __name__ == '__main__':
